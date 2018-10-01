@@ -1,9 +1,6 @@
-# blochTheoremRL
+# Quantum Control in the Eyes of Neural Network
 
-gym folder: Openai gym environment for evaluating different RL agents from baseline. 
-
-baseline folder: collection of different RL agents, among which TRPO and PPO are the state-of-the-art high dimensional continuous variable optimization algorithms being used for our quantum control project.
-
+ 
 Qc_env.py is the customerized environment used inside gym/env/classic_control for optimizing pulse sequence of single-qubit gate simulation. 
 
 
@@ -61,7 +58,4 @@ into `__init__.py` under `/openai/gym/gym/envs/`
 1. enter the openai/modular_rl/folder
 
 2. from the command line, e.g.
-
-```
-python run_pg.py --gamma=0.995 --lam=0.97 --agent=modular_rl.agentzoo.TrpoAgent --max_kl=0.01 --cg_damping=0.1 --activation=tanh --n_iter=15000 --seed=0 --timesteps_per_batch=200 --env=QCEnv-v0 --outfile=name_out_file --video=1 --use_hdf=1 --snapshot_every=30 --load_snapshot=SavedSapshot
-```
+  
