@@ -1,0 +1,182 @@
+% dimensions
+params.n_x = 10;
+params.n_y = 10;
+
+% bounds
+bounds.lb = [1,1]';
+bounds.ub = [params.n_x,params.n_y]';
+
+n_episodes = 200;
+episodesSteps = 600;
+policy = 'balanced' ; %'greedy' ;%'balanced'; % 
+
+alpha = 0.8; % learning rate
+gamma = 0.8; % future reward discount
+learning = 0; % learning vs simulation
+relearning = 0; % continue learning, without initializing the q-function
+plots = 1; % display plots
+
+% initialization
+P = initP(params); % state transition probability kernel
+R = initR(params); % immidiate reward function
+if learning && ~relearning
+    Q = initQ(params); %(s,a); % function handler
+end
+S = []; % previous states visited
+A = []; % previous actions taken
+
+for ii =1:n_episodes
+    %     initilize state
+    s = [3,2]';
+    %     a = selectAction(s, policy);
+    for jj=1:episodesSteps
+        
+        [a, aind] = selectAction(s,Q,policy);
+        [sp, r] = takeAction(a,s,bounds,R);
+        
+        if learning
+            Q = updateQ(S, A, R, Q, s, sp, aind, r, alpha, gamma, bounds);
+        end
+        
+        if plots
+            figure(1)
+            RR = R ;
+            RR(s(1),s(2))=max(R(:))/2;
+            imagesc(RR)
+            title(['episode ',num2str(ii), ' step ', num2str(jj)])
+            
+            figure(2),
+            subplot(2,2,1), imagesc(Q(:,:,1)),
+            subplot(2,2,2), imagesc(Q(:,:,2)),
+            subplot(2,2,3), imagesc(Q(:,:,3)),
+            subplot(2,2,4), imagesc(Q(:,:,4))
+        end
+    
+        s = sp;
+        S = [S, s];
+        A = [A, a];        
+    end
+    ii
+    figure(2), subplot(2,2,1), imagesc(Q(:,:,1)), title('left'), subplot(2,2,2), imagesc(Q(:,:,2)),  title('right'), subplot(2,2,3), imagesc(Q(:,:,3)), title('up'), subplot(2,2,4), imagesc(Q(:,:,4)), title('down'),
+
+end
+
+% DNN interaction Q-learn
+%input : states, actions, and rewards
+%output: Q(a,s)
+
+% DNN interaction policy
+%input : states, actions, and rewards
+%output: policy policy
+
+%--------------------------------------------------------------------------
+function [P] = initP(params)
+n_x =params.n_x;
+n_y =params.n_y;
+
+P = zeros(n_x,n_y);
+P(3:n_x-2,n_y-2) = -100;
+P(n_x-3:n_x-2,n_y-3:n_y-2) = 1000;
+end
+
+%--------------------------------------------------------------------------
+function [R] = initR(params)
+
+n_x =params.n_x;
+n_y =params.n_y;
+% R = ones(20,20);
+% gg = exp(1+(1:20)/10);
+% R = R*spdiags(gg',0,20,20);
+% R(4:16,10) = -100;
+% R(10,20) = 1000;
+R = ones(n_x,n_y);
+gg = exp(1+(1:n_x)/(n_x/2));
+R = R*spdiags(gg',0,n_x,n_y);
+
+% R(3:7,5) = -100;
+R(ceil(n_x*.1):ceil(n_x*.6),ceil(n_y*.4)) = -100;
+R(ceil(n_x*.4):ceil(n_x*1),ceil(n_y*.8)) = -100;
+% goal
+R(ceil(n_x*1):ceil(n_x*1),ceil(n_y*.9):ceil(n_y*1)) = 1000;
+
+end
+
+%--------------------------------------------------------------------------
+function [Q] = initQ(params)
+n_x =params.n_x;
+n_y =params.n_y;
+
+Q = ones(n_x,n_y,4);%/4;
+end
+
+%--------------------------------------------------------------------------
+function [a, aind] = selectAction(s, Q, policy)
+
+left = [-1,0]'; right = [1,0]';
+up = [0,-1]'; down = [0,1]';
+
+actions = {left, right, up, down};
+
+switch lower(policy)
+    case 'greedy'
+        for ii=1:numel(actions)
+            rs(ii) =  Q(s(1),s(2),ii);% Q(s(1),s(2),actions{ii});
+        end
+        [~,aind] = max(rs);        
+    case 'random'
+        aind = randperm(size(actions,2));
+    case 'balanced'
+        beta = 0.7; % balance ratio between greedy (beta=0) and importance sampling choice (beta = 1)
+        for ii=1:numel(actions)
+            rs(ii) = Q(s(1),s(2),ii);%Q(s,actions{ii});
+        end
+        rs = rand(size(actions,2),1) .* (beta * rs' + (1-beta)*(ones(size(actions,2),1) * norm(rs)) ); % weight random selection by expected reward
+        [~,aind] = max(rs);
+    otherwise
+        display('not implemented');
+end
+a = actions{aind};
+end
+
+%--------------------------------------------------------------------------
+function [sNew, r] = takeAction(a, s, bounds, R)
+
+lbTest = bounds.lb <= s + a;
+ubTest = s + a  <= bounds.ub;
+
+sNew = s + a .* lbTest .* ubTest ;
+r = R(s(1),s(2));
+end
+%--------------------------------------------------------------------------
+function [Q] = updateQ(S, A, R, Q, s, sp, aind, r, alpha, gamma, bounds)
+% Bellman equation
+
+% Q(s,a) = r + gamma maxAction(Q(Sopt, Aopt));
+% Q(s,a) = Q(s,a) + alpha *(r + gamma * maximizeOverAction(Q(sNew, aNew)-Q(s,a)));
+
+[aopt, aoptind] = selectAction(s, Q, 'greedy');
+[sopt, r] = takeAction(aopt,s,bounds,R);
+
+ Q(s(1),s(2),aind) = (1-alpha) * Q(s(1),s(2),aind)  + alpha * ( r + gamma * Q(sopt(1),sopt(2),aoptind) ); 
+
+ %--------------------------------------------------------------------------
+% alternatively train a narx model
+ % [x,t] = simplenarx_dataset;
+% net = narxnet(1:2,1:2,10);
+% [X,Xi,Ai,T] = preparets(net,x,{},t);
+% net = train(net,X,T,Xi,Ai);
+% view(net)
+% Y = net(X,Xi,Ai);
+% perf = perform(net,Y,T);
+% 
+% % Closed-loop Form
+% 
+% %    Once designed the dynamic network can be converted to closed loop with
+% %    closeloop and simulated.
+% 
+% netc = closeloop(net);
+% view(netc)
+% [Xc,Xic,Aic,Tc] = preparets(netc,x,{},t);
+% Yc = netc(Xc,Xic,Aic);
+
+end
