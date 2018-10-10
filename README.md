@@ -6,7 +6,7 @@ The folder contains original code in matlab for training deep neural network for
 
 # reference:
 
-1.https://arxiv.org/abs/1506.02438
+1.QIP 2019 submission: quantum control in the eyes of neural networks.
 
 
 # To Run
