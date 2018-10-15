@@ -11,7 +11,7 @@ The folder contains original code in matlab for training deep neural network for
 
 # To Run
 
-0. Generate input output pairs.
-1. Put the data and the codes in the same folder.
+0. Generate training data.
+1. Save the data in the main folder.
 2. Run policyLearnDriver.m for training DNN, and run learnEnvDriver.m for learning RNN.
 
